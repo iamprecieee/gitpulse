@@ -111,7 +111,8 @@ Agent returns:
     },
     "artifacts": [],
     "history": []
-  }
+  },
+  "error": {}
 }
 ```
 
@@ -128,7 +129,8 @@ All errors return structured messages:
     "data": {
       "suggestion": "Try again in a few minutes"
     }
-  }
+  },
+  "result": {}
 }
 ```
 
