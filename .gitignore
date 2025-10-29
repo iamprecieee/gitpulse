@@ -2,6 +2,7 @@
 *.lock
 tests/*
 .env
+logs/
 
 .vscode/
 .git
