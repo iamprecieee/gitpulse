@@ -73,7 +73,7 @@ Users can specify:
 - **count**: Number of results (default: 5, max: 20)
 - **timeframe**: day, week, month (default: week)
 - **language**: Any GitHub language
-- **topic**: Keywords or topics
+- **topics**: Keywords or topics
 - **min_stars**: Minimum star threshold
 
 Examples:
@@ -92,7 +92,7 @@ Input: "What's hot in machine learning this week?"
 LLM extracts:
 ```json
 {
-  "keyword": "machine learning",
+  "topics": ["machine-learning"],
   "language": null,
   "timeframe": "week",
   "min_stars": 50
@@ -101,7 +101,7 @@ LLM extracts:
 
 Agent converts to GitHub query:
 ```
-machine+learning+created:>2025-10-29+stars:>50+pushed:>2025-10-29
+topic:machine-learning+created:>2025-10-29+stars:>50+pushed:>2025-10-29
 ```
 
 ---

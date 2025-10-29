@@ -153,7 +153,6 @@ gitPulse/
 │   │   └── settings.rs   
 |   ├── models/
 │   │   ├── mod.rs
-|   |   ├── mod.rs
 │   |   ├── a2a.rs        
 │   |   ├── repository.rs        
 │   |   └── query.rs          

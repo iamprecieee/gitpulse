@@ -52,7 +52,6 @@ pub struct MessagePart {
     pub text: String,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct TaskResult {
     pub kind: String,
