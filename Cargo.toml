@@ -1,0 +1,17 @@
+[package]
+name = "gitpulse"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+[[bin]]
+name = "gitpulse"
+
+[lib]
+name = "gitpulse"
+path = "src/lib.rs"
+
+[[test]]
+name = "gitpulse"
+path = "tests/mod.rs"

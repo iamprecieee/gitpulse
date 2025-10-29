@@ -1,7 +1,6 @@
 /target
 *.lock
 tests/*
-.env
 
 .vscode/
 .git
