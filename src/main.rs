@@ -2,7 +2,7 @@ use anyhow::{Context, Error, Result};
 use gitpulse::{
     api::{build_router, state::AppState},
     config::{logging::setup_logging, settings::Config},
-    services::{ai::QueryParser, github::GitHubClient},
+    services::{ai::QueryParser, github::GitHubClient, scheduler::AgentScheduler},
 };
 use tokio::net::TcpListener;
 
@@ -79,6 +79,13 @@ async fn main() -> Result<(), Error> {
         config,
         query_parser,
     };
+
+    let scheduler = AgentScheduler::new(state.clone()).await?;
+
+    scheduler.add_daily_digest().await?;
+    scheduler.add_weekly_roundup().await?;
+
+    scheduler.start().await?;
 
     let app = build_router(state);
 
