@@ -46,26 +46,46 @@ pub async fn get_trending(
 
     tracing::info!("User query: {}", user_text);
 
-    let params = match state.query_parser.parse(&user_text).await {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::error!("Failed to parse query with LLM: {}", e);
-            return A2AResponse::error(request.id, -32603, format!("Failed to parse query: {}", e))
+    let params = if let Some(cached_params) = state.cache.get_llm(&user_text) {
+        cached_params
+    } else {
+        match state.query_parser.parse(&user_text).await {
+            Ok(param) => {
+                tracing::info!("Parsed parameters: {:?}", param);
+
+                state.cache.set(Some(&user_text), &param, None);
+                param
+            }
+            Err(e) => {
+                tracing::error!("Failed to parse query with LLM: {}", e);
+                return A2AResponse::error(
+                    request.id,
+                    -32603,
+                    format!("Failed to parse query: {}", e),
+                )
                 .into_response();
+            }
         }
     };
 
-    let repos = match state.github_client.search_with_params(&params).await {
-        Ok(repos) => repos,
-        Err(e) => {
-            tracing::error!("GitHub API error: {}", e);
+    let repos = if let Some(cached_repos) = state.cache.get_repo(&params) {
+        cached_repos
+    } else {
+        match state.github_client.search_with_params(&params).await {
+            Ok(repos) => {
+                state.cache.set(None, &params, Some(repos.clone()));
+                repos
+            }
+            Err(e) => {
+                tracing::error!("GitHub API error: {}", e);
 
-            return A2AResponse::error(
-                request.id,
-                -32600,
-                format!("Failed to fetch trending repos: {}", e).to_string(),
-            )
-            .into_response();
+                return A2AResponse::error(
+                    request.id,
+                    -32600,
+                    format!("Failed to fetch trending repos: {}", e).to_string(),
+                )
+                .into_response();
+            }
         }
     };
 

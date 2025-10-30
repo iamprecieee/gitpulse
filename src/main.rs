@@ -2,7 +2,7 @@ use anyhow::{Context, Error, Result};
 use gitpulse::{
     api::{build_router, state::AppState},
     config::{logging::setup_logging, settings::Config},
-    services::{ai::QueryParser, github::GitHubClient, scheduler::AgentScheduler},
+    services::{ai::QueryParser, cache::Cache, github::GitHubClient, scheduler::AgentScheduler},
 };
 use tokio::net::TcpListener;
 
@@ -72,12 +72,17 @@ async fn main() -> Result<(), Error> {
 
     tracing::info!("Query parser initialized");
 
+    let cache = Cache::new(config.cache_ttl);
+
+    tracing::info!("LLM cache initialized (TTL: {}s)", config.cache_ttl);
+
     let addr = format!("{}:{}", &config.host, &config.port);
 
     let state = AppState {
         github_client,
         config,
         query_parser,
+        cache,
     };
 
     let scheduler = AgentScheduler::new(state.clone()).await?;
