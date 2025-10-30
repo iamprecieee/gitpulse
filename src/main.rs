@@ -63,6 +63,7 @@ async fn main() -> Result<(), Error> {
         .context("System prompt is required but not configured")?;
 
     let query_parser = QueryParser::new(
+        &config.llm_provider,
         &config.llm_api_key,
         &config.llm_model,
         system_prompt.as_str(),
