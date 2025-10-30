@@ -9,7 +9,7 @@ use crate::{
         query::QueryParams,
         repository::{SearchResponse, TrendingRepo},
     },
-    utils::helpers::calculate_date_filters,
+    utils::helpers::build_base_query_parts,
 };
 
 #[derive(Debug, Clone)]
@@ -19,7 +19,7 @@ pub struct GitHubClient {
 }
 
 impl GitHubClient {
-    pub fn new(github_access_token: Option<String>, github_search_url: String) -> Result<Self> {
+    pub fn new(github_access_token: Option<&str>, github_search_url: &str) -> Result<Self> {
         let mut headers = HeaderMap::new();
 
         headers.insert(USER_AGENT, HeaderValue::from_static("gitpulse-agent"));
@@ -48,22 +48,19 @@ impl GitHubClient {
 
         Ok(Self {
             client,
-            search_url: github_search_url,
+            search_url: github_search_url.to_string(),
         })
     }
 
     pub async fn search_with_params(&self, params: &QueryParams) -> Result<Vec<TrendingRepo>> {
-        let base_query_parts = self.build_base_query_parts(params);
+        let base_query_parts = build_base_query_parts(params);
 
         if !params.topics.is_empty() {
-            if let Some(repos) = self.try_search_all_topics(&base_query_parts, params).await {
+            if let Some(repos) = self.search_all_topics(&base_query_parts, params).await {
                 return Ok(repos);
             }
 
-            if let Some(repos) = self
-                .search_topics_individually(&base_query_parts, params)
-                .await
-            {
+            if let Some(repos) = self.search_single_topic(&base_query_parts, params).await {
                 return Ok(repos);
             }
         }
@@ -75,7 +72,7 @@ impl GitHubClient {
         self.search_repositories(&query, params.count).await
     }
 
-    async fn try_search_all_topics(
+    async fn search_all_topics(
         &self,
         base_query_parts: &[String],
         params: &QueryParams,
@@ -109,7 +106,7 @@ impl GitHubClient {
         }
     }
 
-    async fn search_topics_individually(
+    async fn search_single_topic(
         &self,
         base_query_parts: &[String],
         params: &QueryParams,
@@ -119,7 +116,7 @@ impl GitHubClient {
 
         for topic in &params.topics {
             if let Some(repos) = self
-                .search_single_topic(base_query_parts, topic, params.count)
+                .search_topic(base_query_parts, topic, params.count)
                 .await
             {
                 for repo in repos {
@@ -144,7 +141,7 @@ impl GitHubClient {
         Some(all_repos)
     }
 
-    async fn search_single_topic(
+    async fn search_topic(
         &self,
         base_query_parts: &[String],
         topic: &str,
@@ -210,46 +207,5 @@ impl GitHubClient {
             .collect();
 
         Ok(trending_repos)
-    }
-
-    pub fn format_trending_message(repos: &[TrendingRepo], timeframe: &str) -> String {
-        if repos.is_empty() {
-            return format!("No trending repositories found for {}.", timeframe);
-        }
-
-        let mut message = format!("Trending on GitHub ({})\n\n", timeframe);
-
-        for (i, repo) in repos.iter().enumerate() {
-            message.push_str(&format!(
-                "{}. {} - {} stars\n   {} - {}\n   {}\n\n",
-                i + 1,
-                repo.name,
-                repo.stars,
-                repo.language,
-                repo.description,
-                repo.url
-            ));
-        }
-
-        message
-    }
-
-    fn build_base_query_parts(&self, params: &QueryParams) -> Vec<String> {
-        let (created_date, pushed_date) = calculate_date_filters(&params.timeframe);
-
-        let mut query_parts = vec![
-            format!("created:>{}", created_date),
-            format!("pushed:>{}", pushed_date),
-        ];
-
-        if let Some(ref language) = params.language {
-            query_parts.push(format!("language:{}", language));
-        }
-
-        if params.min_stars > 0 {
-            query_parts.push(format!("stars:>={}", params.min_stars));
-        }
-
-        query_parts
     }
 }

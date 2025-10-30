@@ -5,13 +5,14 @@ use dotenvy::dotenv;
 use gitpulse::{
     models::{query::QueryParams, repository::TrendingRepo},
     services::github::GitHubClient,
+    utils::helpers::format_trending_message,
 };
 
 fn create_test_client() -> Result<GitHubClient> {
     dotenv().ok();
 
     let github_search_url = env::var("GITHUB_SEARCH_URL")?;
-    GitHubClient::new(None, github_search_url)
+    GitHubClient::new(None, github_search_url.as_str())
 }
 
 #[test]
@@ -24,7 +25,7 @@ fn test_format_message() {
         stars: 100,
     }];
 
-    let message = GitHubClient::format_trending_message(&repos, "test");
+    let message = format_trending_message(&repos, "test");
     assert!(message.contains("test/repo"));
     assert!(message.contains("100 stars"));
 }

@@ -1,4 +1,9 @@
+use axum::{
+    Json,
+    response::{IntoResponse, Response},
+};
 use chrono::{SecondsFormat, Utc};
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::ToSchema;
@@ -125,5 +130,22 @@ impl A2AResponse {
             }),
             result: None,
         }
+    }
+}
+
+impl IntoResponse for A2AResponse {
+    fn into_response(self) -> Response {
+        let status = if let Some(error) = &self.error {
+            match error.code {
+                -32600 => StatusCode::BAD_REQUEST,
+                -32603 => StatusCode::INTERNAL_SERVER_ERROR,
+                -32000 => StatusCode::SERVICE_UNAVAILABLE,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        } else {
+            StatusCode::OK
+        };
+
+        (status, Json(self)).into_response()
     }
 }

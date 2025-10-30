@@ -11,15 +11,15 @@ pub struct QueryParser {
 }
 
 impl QueryParser {
-    pub async fn new(api_key: String, model: String, system_prompt: String) -> Result<Self> {
-        let client = Client::new(&api_key)
+    pub async fn new(api_key: &str, model: &str, system_prompt: &str) -> Result<Self> {
+        let client = Client::new(api_key)
             .await
             .context("Failed to initialize Gemini client")?;
 
         Ok(Self {
             client,
-            model,
-            system_prompt,
+            model: model.to_string(),
+            system_prompt: system_prompt.to_string(),
         })
     }
 
