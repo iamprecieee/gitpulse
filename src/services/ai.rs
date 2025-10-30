@@ -1,20 +1,47 @@
+use std::sync::Arc;
+
+use anthropic_sdk::{Anthropic, ContentBlock, MessageCreateBuilder};
 use anyhow::{Context, Result};
 use google_ai_rs::Client;
 
 use crate::models::query::QueryParams;
 
 #[derive(Clone)]
+enum LlmClient {
+    Claude(Arc<Anthropic>),
+    Gemini(Client),
+}
+
+#[derive(Clone)]
 pub struct QueryParser {
-    client: Client,
+    client: LlmClient,
     model: String,
     system_prompt: String,
 }
 
 impl QueryParser {
-    pub async fn new(api_key: &str, model: &str, system_prompt: &str) -> Result<Self> {
-        let client = Client::new(api_key)
-            .await
-            .context("Failed to initialize Gemini client")?;
+    pub async fn new(
+        llm_provider: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+    ) -> Result<Self> {
+        let client = if llm_provider == "anthropic" {
+            let anthropic = Arc::new(Anthropic::new(api_key)?);
+
+            LlmClient::Claude(anthropic)
+        } else if llm_provider == "gemini" {
+            let gemini = Client::new(api_key)
+                .await
+                .context("Failed to initialize Gemini client")?;
+
+            LlmClient::Gemini(gemini)
+        } else {
+            anyhow::bail!(
+                "Unknown provider: {}. Must be either 'claude' or 'gemini'",
+                model
+            );
+        };
 
         Ok(Self {
             client,
@@ -24,18 +51,42 @@ impl QueryParser {
     }
 
     pub async fn parse(&self, user_query: &str) -> Result<QueryParams> {
-        let full_prompt = format!("{}\n\nQuery: \"{}\"", self.system_prompt, user_query);
+        let response_text = match &self.client {
+            LlmClient::Claude(anthropic_client) => {
+                let response = anthropic_client
+                    .messages()
+                    .create(
+                        MessageCreateBuilder::new(&self.model, 200)
+                            .system(&self.system_prompt)
+                            .user(user_query)
+                            .build(),
+                    )
+                    .await
+                    .context("Failed to call Anthropic API")?;
 
-        let model = self.client.generative_model(&self.model);
+                response
+                    .content
+                    .into_iter()
+                    .filter_map(|block| match block {
+                        ContentBlock::Text { text } => Some(text),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>()
+                    .join("")
+            }
+            LlmClient::Gemini(gemini_client) => {
+                let full_prompt = format!("{}\n\nQuery: \"{}\"", self.system_prompt, user_query);
 
-        let response = model
-            .generate_content(full_prompt)
-            .await
-            .context("Failed to call Gemini API")?;
+                let model = gemini_client.generative_model(&self.model);
 
-        let response_text = response.text();
+                let response = model
+                    .generate_content(full_prompt)
+                    .await
+                    .context("Failed to call Gemini API")?;
 
-        tracing::debug!(target: "Gemini raw", response = ?response_text);
+                response.text()
+            }
+        };
 
         let params = self.parse_llm_response(&response_text)?;
 

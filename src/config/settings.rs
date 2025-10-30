@@ -7,6 +7,7 @@ use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    pub llm_provider: String,
     pub github_search_url: String,
     pub github_access_token: String,
     pub external_webhook_url: String,

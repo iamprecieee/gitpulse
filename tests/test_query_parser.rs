@@ -7,12 +7,13 @@ use std::{env, fs};
 async fn test_parse_query_with_real_gemini_api() -> Result<()> {
     dotenv().ok();
 
+    let llm_provider = env::var("LLM_PROVIDER")?;
     let api_key = env::var("LLM_API_KEY")?;
     let model = env::var("LLM_MODEL")?;
     let system_prompt =
         fs::read_to_string("system_prompt.txt").expect("Failed to load system prompt");
 
-    let parser = QueryParser::new(api_key.as_str(), model.as_str(), system_prompt.as_str()).await?;
+    let parser = QueryParser::new(llm_provider.as_str(), api_key.as_str(), model.as_str(), system_prompt.as_str()).await?;
 
     let user_query = "Get trending AI and Biotech repositories written in Rust created after October 1st 2025. add natural lang too";
 
