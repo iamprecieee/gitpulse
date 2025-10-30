@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use axum::http::{HeaderMap, HeaderValue};
+use futures::future::join_all;
 use reqwest::header::{ACCEPT, USER_AGENT};
 
 use crate::{
@@ -111,14 +112,18 @@ impl GitHubClient {
         base_query_parts: &[String],
         params: &QueryParams,
     ) -> Option<Vec<TrendingRepo>> {
+        let search_futures = params
+            .topics
+            .iter()
+            .map(|topic| self.search_topic(base_query_parts, topic, params.count));
+
+        let results = join_all(search_futures).await;
+
         let mut all_repos = Vec::new();
         let mut seen_names = HashSet::new();
 
-        for topic in &params.topics {
-            if let Some(repos) = self
-                .search_topic(base_query_parts, topic, params.count)
-                .await
-            {
+        for result in results {
+            if let Some(repos) = result {
                 for repo in repos {
                     if seen_names.insert(repo.name.clone()) {
                         all_repos.push(repo);

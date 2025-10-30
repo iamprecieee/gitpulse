@@ -29,10 +29,12 @@ impl Cache {
     }
 
     fn make_repo_key(params: &QueryParams) -> String {
+        let mut sorted_topics = params.topics.clone();
+        sorted_topics.sort();
         format!(
-            "{}:{:?}:{}:{}:{}",
+            "{}:{}:{}:{}:{}",
             params.language.as_deref().unwrap_or("None"),
-            params.topics,
+            sorted_topics.join(","),
             params.timeframe,
             params.count,
             params.min_stars

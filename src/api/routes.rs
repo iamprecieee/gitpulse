@@ -25,7 +25,8 @@ pub async fn health_check() -> impl IntoResponse {
     path = "/trending",
     responses(
         (status = 200, body = A2AResponse),
-        (status = 500, body = A2AResponse)
+        (status = -32600, body = A2AResponse),
+        (status = -32700, body = A2AResponse)
     )
 )]
 pub async fn get_trending(
@@ -60,8 +61,8 @@ pub async fn get_trending(
                 tracing::error!("Failed to parse query with LLM: {}", e);
                 return A2AResponse::error(
                     request.id,
-                    -32603,
-                    format!("Failed to parse query: {}", e),
+                    -32700,
+                    "Unable to process your query. Please try rephrasing.".to_string(),
                 )
                 .into_response();
             }
