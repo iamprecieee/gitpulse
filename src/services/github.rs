@@ -80,7 +80,7 @@ impl GitHubClient {
         let mut all_topics_parts = base_query_parts.to_vec();
 
         for topic in &params.topics {
-            all_topics_parts.insert((all_topics_parts.len() - 1) as usize, topic.clone());
+            all_topics_parts.insert(0, topic.clone());
         }
 
         let query = all_topics_parts.join("+");
@@ -148,7 +148,7 @@ impl GitHubClient {
         count: usize,
     ) -> Option<Vec<TrendingRepo>> {
         let mut single_topic_parts = base_query_parts.to_vec();
-        single_topic_parts.insert((single_topic_parts.len() - 1) as usize, topic.to_string());
+        single_topic_parts.insert(0, topic.to_string());
 
         let query = single_topic_parts.join("+");
 
