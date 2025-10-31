@@ -17,6 +17,7 @@ pub struct Config {
     pub cache_ttl: u64,
     pub host: String,
     pub port: u32,
+    pub cors_allowed_origins: String,
 }
 
 impl Config {

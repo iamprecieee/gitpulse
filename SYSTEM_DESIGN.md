@@ -188,6 +188,7 @@ Core libraries:
 - **tokio**: Async runtime
 - **tokio-cron-scheduler**: Job scheduling
 - **tokio-test** and **tower**: Testing
+- **tower-http**: Cors
 - **tracing**, **tracing-appender**, and **tracing-subscriber**: Logging
 - **utoipa** and **utoipa-swagger-ui**: Openapi/swagger docs
 - **uuid**: Unique identifier
@@ -208,6 +209,7 @@ CACHE_TTL=21600
 HOST=0.0.0.0
 PORT=8000
 RUST_LOG=info
+CORS_ALLOWED_ORIGINS=http://localhost
 ```
 
 ### Resource Requirements

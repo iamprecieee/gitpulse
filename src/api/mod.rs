@@ -1,7 +1,9 @@
 use axum::{
     Router,
+    http::{self, HeaderValue},
     routing::{get, post},
 };
+use tower_http::cors::CorsLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -38,9 +40,29 @@ pub mod state;
 pub struct ApiDoc;
 
 pub fn build_router(state: AppState) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(
+            state
+                .config
+                .cors_allowed_origins
+                .split(',')
+                .map(|val| val.trim())
+                .filter(|val| !val.is_empty())
+                .filter_map(|origin| origin.parse::<HeaderValue>().ok())
+                .collect::<Vec<_>>(),
+        )
+        .allow_methods([http::Method::GET, http::Method::POST, http::Method::OPTIONS])
+        .allow_headers([
+            http::header::CONTENT_TYPE,
+            http::header::COOKIE,
+            http::header::CACHE_CONTROL,
+        ])
+        .allow_credentials(true);
+
     Router::new()
         .route("/health", get(health_check))
         .route("/trending", post(get_trending))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(cors)
         .with_state(state)
 }
