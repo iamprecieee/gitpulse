@@ -64,8 +64,8 @@ pub struct TaskResult {
     #[serde(rename = "contextId")]
     pub context_id: String,
     pub status: TaskStatus,
-    pub artifacts: Vec<String>,
-    pub history: Vec<String>,
+    pub artifacts: Vec<Artifact>,
+    pub history: Vec<Message>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -73,6 +73,14 @@ pub struct TaskStatus {
     pub state: String,
     pub timestamp: String,
     pub message: Message,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
+pub struct Artifact {
+    #[serde(rename = "artifactId")]
+    pub artifact_id: String,
+    pub name: String,
+    pub parts: Vec<MessagePart>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -84,11 +92,27 @@ pub struct ErrorDetail {
 }
 
 impl A2AResponse {
-    pub fn success(request_id: String, task_id: Option<String>, response_text: String) -> Self {
+    pub fn success(
+        request_id: String,
+        task_id: Option<String>,
+        response_text: String,
+        artifacts: Vec<Artifact>,
+        request_message: &Message,
+    ) -> Self {
         let now = Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true);
         let task_id = match task_id {
             Some(val) => val,
             None => Uuid::new_v4().to_string(),
+        };
+        let response_message = Message {
+            message_id: Uuid::new_v4().to_string(),
+            role: "agent".to_string(),
+            parts: vec![MessagePart {
+                kind: "text".to_string(),
+                text: response_text,
+            }],
+            task_id: Some(task_id.clone()),
+            kind: "message".to_string(),
         };
 
         Self {
@@ -96,24 +120,15 @@ impl A2AResponse {
             id: request_id,
             result: Some(TaskResult {
                 kind: "task".to_string(),
-                id: task_id.clone(),
+                id: task_id,
                 context_id: Uuid::new_v4().to_string(),
                 status: TaskStatus {
                     state: "completed".to_string(),
                     timestamp: now,
-                    message: Message {
-                        message_id: Uuid::new_v4().to_string(),
-                        role: "agent".to_string(),
-                        parts: vec![MessagePart {
-                            kind: "text".to_string(),
-                            text: response_text,
-                        }],
-                        task_id: Some(task_id),
-                        kind: "message".to_string(),
-                    },
+                    message: response_message.clone(),
                 },
-                artifacts: vec![],
-                history: vec![],
+                artifacts,
+                history: vec![request_message.clone(), response_message],
             }),
             error: None,
         }
