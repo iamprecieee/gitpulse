@@ -43,7 +43,11 @@ impl GitHubClient {
 
         let client = reqwest::Client::builder()
             .default_headers(headers)
-            .timeout(std::time::Duration::from_secs(10))
+            .timeout(std::time::Duration::from_secs(7))
+            .pool_max_idle_per_host(10)
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .tcp_keepalive(std::time::Duration::from_secs(60))
+            .tcp_nodelay(true)
             .build()
             .context("Failed to build HTTP client")?;
 
@@ -57,12 +61,24 @@ impl GitHubClient {
         let base_query_parts = build_base_query_parts(params);
 
         if !params.topics.is_empty() {
-            if let Some(repos) = self.search_all_topics(&base_query_parts, params).await {
-                return Ok(repos);
+            let all_topics_future = self.search_all_topics(&base_query_parts, params);
+            let single_topics_future = self.search_single_topic(&base_query_parts, params);
+
+            let (all_topics_result, single_topics_result) =
+                tokio::join!(all_topics_future, single_topics_future);
+
+            if let Some(repos) = all_topics_result {
+                if !repos.is_empty() {
+                    tracing::info!("Found {} repos via all-topics search", repos.len());
+                    return Ok(repos);
+                }
             }
 
-            if let Some(repos) = self.search_single_topic(&base_query_parts, params).await {
-                return Ok(repos);
+            if let Some(repos) = single_topics_result {
+                if !repos.is_empty() {
+                    tracing::info!("Found {} repos via single-topics search", repos.len());
+                    return Ok(repos);
+                }
             }
         }
 

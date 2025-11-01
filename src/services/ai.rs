@@ -56,7 +56,7 @@ impl QueryParser {
                 let response = anthropic_client
                     .messages()
                     .create(
-                        MessageCreateBuilder::new(&self.model, 200)
+                        MessageCreateBuilder::new(&self.model, 100)
                             .system(&self.system_prompt)
                             .user(user_query)
                             .build(),
