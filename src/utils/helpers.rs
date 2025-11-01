@@ -77,24 +77,28 @@ pub fn format_trending_message(repos: &[TrendingRepo], timeframe: &str) -> Strin
 }
 
 pub fn extract_user_query(request: &A2ARequest) -> Option<String> {
-    
-
     let data_part = request
-    .params
-    .message
-    .parts
-    .iter()
-    .find(|part| matches!(part, MessagePart::Data { .. }))?;
+        .params
+        .message
+        .parts
+        .iter()
+        .find(|part| matches!(part, MessagePart::Data { .. }))?;
 
     if let MessagePart::Data { data, .. } = data_part {
-        if let Some(last_msg) = data.last() {
-            if let Some(text) = last_msg.get("text").and_then(|v| v.as_str()) {
+        let len = data.len();
+        if len < 2 {
+            return None;
+        }
+
+        if let Some(user_msg) = data.get(len - 2) {
+            if let Some(text) = user_msg.get("text").and_then(|v| v.as_str()) {
                 let cleaned = text
                     .replace("<p>", "")
                     .replace("</p>", "")
+                    .replace("<br />", "")
                     .trim()
                     .to_string();
-                
+
                 if !cleaned.is_empty() {
                     return Some(cleaned);
                 }

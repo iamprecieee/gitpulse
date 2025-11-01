@@ -54,14 +54,8 @@ pub struct Configuration {
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 #[serde(untagged)]
 pub enum MessagePart {
-    Text {
-        kind: String,
-        text: String,
-    },
-    Data {
-        kind: String,
-        data: Vec<Value>,
-    }
+    Text { kind: String, text: String },
+    Data { kind: String, data: Vec<Value> },
 }
 
 impl MessagePart {
