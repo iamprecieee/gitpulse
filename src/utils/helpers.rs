@@ -82,40 +82,41 @@ pub fn extract_user_query(request: &A2ARequest) -> Option<String> {
         .message
         .parts
         .iter()
-        .find(|part| matches!(part, MessagePart::Data { .. }))?;
+        .find(|part| matches!(part, MessagePart::Data { .. }));
 
-    if let MessagePart::Data { data, .. } = data_part {
-        let len = data.len();
-        if len < 2 {
-            return None;
-        }
+    if let Some(MessagePart::Data { data, .. }) = data_part {
+        for entry in data.iter().rev() {
+            if let Some(text) = entry.get("text").and_then(|v| v.as_str()) {
+                let trimmed = text.trim();
 
-        if let Some(user_msg) = data.get(len - 2) {
-            if let Some(text) = user_msg.get("text").and_then(|v| v.as_str()) {
-                let cleaned = text
-                    .replace("<p>", "")
-                    .replace("</p>", "")
-                    .replace("<br />", "")
-                    .trim()
-                    .to_string();
+                let is_user_query = trimmed.starts_with("<p>") || trimmed.len() > 0;
 
-                if !cleaned.is_empty() {
-                    return Some(cleaned);
+                if is_user_query {
+                    let cleaned = trimmed
+                        .replace("<p>", "")
+                        .replace("</p>", "")
+                        .replace("<br />", "")
+                        .trim()
+                        .to_string();
+
+                    if !cleaned.is_empty() {
+                        return Some(cleaned);
+                    }
                 }
             }
         }
     }
 
-    request
-        .params
-        .message
-        .parts
-        .iter()
-        .find(|part| matches!(part, MessagePart::Text { .. }))
-        .and_then(|part| match part {
-            MessagePart::Text { text, .. } => Some(text.clone()),
-            _ => None,
-        })
+    for part in &request.params.message.parts {
+        if let MessagePart::Text { text, .. } = part {
+            let cleaned = text.trim();
+            if !cleaned.is_empty() {
+                return Some(cleaned.to_string());
+            }
+        }
+    }
+
+    None
 }
 
 pub fn create_artifacts(response_text: String) -> Vec<Artifact> {
