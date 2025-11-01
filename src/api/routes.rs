@@ -26,7 +26,6 @@ pub async fn health_check() -> impl IntoResponse {
     responses(
         (status = 200, body = A2AResponse),
         (status = 400, body = A2AResponse),
-        (status = 406, body = A2AResponse),
         (status = 500, body = A2AResponse),
     )
 )]
@@ -38,7 +37,7 @@ pub async fn get_trending(
 
     if request.jsonrpc != "2.0".to_string() {
         return (
-            StatusCode::NOT_ACCEPTABLE,
+            StatusCode::BAD_REQUEST,
             A2AResponse::error(request.id, -32602, "invalid jsonrpc".to_string()),
         )
             .into_response();
