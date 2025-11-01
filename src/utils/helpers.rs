@@ -1,6 +1,11 @@
 use chrono::{Duration, Utc};
+use uuid::Uuid;
 
-use crate::models::{a2a::A2ARequest, query::QueryParams, repository::TrendingRepo};
+use crate::models::{
+    a2a::{A2ARequest, Artifact, MessagePart},
+    query::QueryParams,
+    repository::TrendingRepo,
+};
 
 pub fn calculate_date_filters(timeframe: &String) -> (String, String) {
     let created_days = match timeframe.as_str() {
@@ -78,4 +83,19 @@ pub fn extract_user_query(request: &A2ARequest) -> Option<String> {
         .parts
         .first()
         .map(|part| part.text.clone())
+}
+
+pub fn create_artifacts(response_text: String) -> Vec<Artifact> {
+    let mut artifacts = Vec::new();
+
+    artifacts.push(Artifact {
+        artifact_id: Uuid::new_v4().to_string(),
+        name: "gitpulseAgentResponse".to_string(),
+        parts: vec![MessagePart {
+            kind: "text".to_string(),
+            text: response_text,
+        }],
+    });
+
+    artifacts
 }

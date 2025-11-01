@@ -6,7 +6,7 @@ use uuid::Uuid;
 use crate::{
     api::state::AppState,
     models::a2a::{A2ARequest, A2AResponse},
-    utils::helpers::{extract_user_query, format_trending_message},
+    utils::helpers::{create_artifacts, extract_user_query, format_trending_message},
 };
 
 #[utoipa::path(
@@ -25,8 +25,9 @@ pub async fn health_check() -> impl IntoResponse {
     path = "/trending",
     responses(
         (status = 200, body = A2AResponse),
-        (status = -32600, body = A2AResponse),
-        (status = -32700, body = A2AResponse)
+        (status = 400, body = A2AResponse),
+        (status = 406, body = A2AResponse),
+        (status = 500, body = A2AResponse),
     )
 )]
 pub async fn get_trending(
@@ -35,12 +36,23 @@ pub async fn get_trending(
 ) -> impl IntoResponse {
     tracing::info!("Received A2A request: ?{}", request.id);
 
+    if request.jsonrpc != "2.0".to_string() {
+        return (
+            StatusCode::NOT_ACCEPTABLE,
+            A2AResponse::error(request.id, -32602, "invalid jsonrpc".to_string()),
+        )
+            .into_response();
+    }
+
     let user_text = match extract_user_query(&request) {
         Some(text) => text,
         None => {
             tracing::error!("Failed to extract user query from request");
 
-            return A2AResponse::error(request.id, -32600, "no message text found".to_string())
+            return (
+                StatusCode::BAD_REQUEST,
+                A2AResponse::error(request.id, -32600, "no message text found".to_string()),
+            )
                 .into_response();
         }
     };
@@ -59,12 +71,15 @@ pub async fn get_trending(
             }
             Err(e) => {
                 tracing::error!("Failed to parse query with LLM: {}", e);
-                return A2AResponse::error(
-                    request.id,
-                    -32700,
-                    "Unable to process your query. Please try rephrasing.".to_string(),
+                return (
+                    StatusCode::BAD_REQUEST,
+                    A2AResponse::error(
+                        request.id,
+                        -32700,
+                        "Unable to process your query. Please try rephrasing.".to_string(),
+                    ),
                 )
-                .into_response();
+                    .into_response();
             }
         }
     };
@@ -80,18 +95,24 @@ pub async fn get_trending(
             Err(e) => {
                 tracing::error!("GitHub API error: {}", e);
 
-                return A2AResponse::error(
-                    request.id,
-                    -32600,
-                    format!("Failed to fetch trending repos: {}", e).to_string(),
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    A2AResponse::error(
+                        request.id,
+                        -32600,
+                        "Failed to fetch trending repositories. Try again later".to_string(),
+                    ),
                 )
-                .into_response();
+                    .into_response();
             }
         }
     };
 
     let timeframe_label = format!("last {}", params.timeframe);
     let response_text = format_trending_message(&repos, &timeframe_label);
+
+    let artifacts = create_artifacts(response_text.clone());
+
     let response = A2AResponse::success(
         request.id,
         Some(
@@ -99,9 +120,12 @@ pub async fn get_trending(
                 .params
                 .message
                 .task_id
+                .clone()
                 .unwrap_or_else(|| Uuid::new_v4().to_string()),
         ),
         response_text,
+        artifacts,
+        &request.params.message,
     );
 
     tracing::info!("Sending successful response with {} repos", repos.len());

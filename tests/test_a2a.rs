@@ -1,4 +1,7 @@
-use gitpulse::models::a2a::{A2ARequest, A2AResponse};
+use gitpulse::{
+    models::a2a::{A2ARequest, A2AResponse, Message},
+    utils::helpers::create_artifacts,
+};
 
 #[test]
 fn test_default_configuration() {
@@ -26,10 +29,21 @@ fn test_default_configuration() {
 
 #[test]
 fn test_success_response() {
+    let message = Message {
+        kind: "text".to_string(),
+        role: "user".to_string(),
+        parts: vec![],
+        message_id: "test-123".to_string(),
+        task_id: Some("test-123".to_string()),
+    };
+    let response_text = "Here are trending repos...".to_string();
+
     let response = A2AResponse::success(
         "test-123".to_string(),
         Some("task-123".to_string()),
-        "Here are trending repos...".to_string(),
+        response_text.clone(),
+        create_artifacts(response_text),
+        &message,
     );
 
     let json = serde_json::to_string(&response).unwrap();
@@ -40,10 +54,21 @@ fn test_success_response() {
 
 #[test]
 fn test_success_response_without_task_id() {
+    let message = Message {
+        kind: "text".to_string(),
+        role: "user".to_string(),
+        parts: vec![],
+        message_id: "test-123".to_string(),
+        task_id: Some("test-123".to_string()),
+    };
+    let response_text = "Here are trending repos...".to_string();
+
     let response = A2AResponse::success(
         "req-111".to_string(),
         None,
-        "Response without provided task ID".to_string(),
+        response_text.clone(),
+        create_artifacts(response_text),
+        &message,
     );
 
     let json = serde_json::to_string(&response).unwrap();
@@ -75,10 +100,21 @@ fn test_serialize_error_response() {
 
 #[test]
 fn test_response_round_trip() {
+    let message = Message {
+        kind: "text".to_string(),
+        role: "user".to_string(),
+        parts: vec![],
+        message_id: "test-123".to_string(),
+        task_id: Some("test-123".to_string()),
+    };
+    let response_text = "Round-trip test".to_string();
+
     let original = A2AResponse::success(
         "req-roundtrip".to_string(),
         Some("task-roundtrip".to_string()),
-        "Round-trip test".to_string(),
+        response_text.clone(),
+        create_artifacts(response_text),
+        &message,
     );
 
     let json = serde_json::to_string(&original).unwrap();
