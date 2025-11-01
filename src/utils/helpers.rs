@@ -77,12 +77,41 @@ pub fn format_trending_message(repos: &[TrendingRepo], timeframe: &str) -> Strin
 }
 
 pub fn extract_user_query(request: &A2ARequest) -> Option<String> {
+    
+
+    let data_part = request
+    .params
+    .message
+    .parts
+    .iter()
+    .find(|part| matches!(part, MessagePart::Data { .. }))?;
+
+    if let MessagePart::Data { data, .. } = data_part {
+        if let Some(last_msg) = data.last() {
+            if let Some(text) = last_msg.get("text").and_then(|v| v.as_str()) {
+                let cleaned = text
+                    .replace("<p>", "")
+                    .replace("</p>", "")
+                    .trim()
+                    .to_string();
+                
+                if !cleaned.is_empty() {
+                    return Some(cleaned);
+                }
+            }
+        }
+    }
+
     request
         .params
         .message
         .parts
-        .first()
-        .map(|part| part.text.clone())
+        .iter()
+        .find(|part| matches!(part, MessagePart::Text { .. }))
+        .and_then(|part| match part {
+            MessagePart::Text { text, .. } => Some(text.clone()),
+            _ => None,
+        })
 }
 
 pub fn create_artifacts(response_text: String) -> Vec<Artifact> {
@@ -91,7 +120,7 @@ pub fn create_artifacts(response_text: String) -> Vec<Artifact> {
     artifacts.push(Artifact {
         artifact_id: Uuid::new_v4().to_string(),
         name: "gitpulseAgentResponse".to_string(),
-        parts: vec![MessagePart {
+        parts: vec![MessagePart::Text {
             kind: "text".to_string(),
             text: response_text,
         }],

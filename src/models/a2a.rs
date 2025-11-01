@@ -52,9 +52,33 @@ pub struct Configuration {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-pub struct MessagePart {
-    pub kind: String,
-    pub text: String,
+#[serde(untagged)]
+pub enum MessagePart {
+    Text {
+        kind: String,
+        text: String,
+    },
+    Data {
+        kind: String,
+        data: Vec<Value>,
+    }
+}
+
+impl MessagePart {
+    pub fn is_text(&self) -> bool {
+        matches!(self, MessagePart::Text { .. })
+    }
+
+    pub fn is_data(&self) -> bool {
+        matches!(self, MessagePart::Data { .. })
+    }
+
+    pub fn kind(&self) -> &str {
+        match self {
+            MessagePart::Text { kind, .. } => kind,
+            MessagePart::Data { kind, .. } => kind,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -107,7 +131,7 @@ impl A2AResponse {
         let response_message = Message {
             message_id: Uuid::new_v4().to_string(),
             role: "agent".to_string(),
-            parts: vec![MessagePart {
+            parts: vec![MessagePart::Text {
                 kind: "text".to_string(),
                 text: response_text,
             }],

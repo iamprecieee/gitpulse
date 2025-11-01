@@ -1,5 +1,5 @@
 use gitpulse::{
-    models::a2a::{A2ARequest, A2AResponse, Message},
+    models::a2a::{A2ARequest, A2AResponse, Message, MessagePart},
     utils::helpers::create_artifacts,
 };
 
@@ -125,5 +125,13 @@ fn test_response_round_trip() {
     assert!(deserialized.result.is_some());
     let result = deserialized.result.unwrap();
     assert_eq!(result.status.state, "completed");
-    assert_eq!(result.status.message.parts[0].text, "Round-trip test");
+
+    match &result.status.message.parts[0] {
+        MessagePart::Text { text, .. } => {
+            assert_eq!(text, "Round-trip test");
+        }
+        MessagePart::Data { .. } => {
+            panic!("Expected Text part, got Data part");
+        }
+    }
 }

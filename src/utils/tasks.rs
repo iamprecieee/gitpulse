@@ -72,7 +72,7 @@ async fn call_external_webhook(
     let request_message = Message {
         kind: "message".to_string(),
         role: "agent".to_string(),
-        parts: vec![MessagePart {
+        parts: vec![MessagePart::Text {
             kind: "text".to_string(),
             text: "Proactive notification".to_string(),
         }],
