@@ -107,7 +107,7 @@ pub async fn get_trending(
         }
     };
 
-    let timeframe_label = format!("last {}", params.timeframe);
+    let timeframe_label = format!("recent [{}]", params.timeframe);
     let response_text = format_trending_message(&repos, &timeframe_label);
 
     let artifacts = create_artifacts(response_text.clone());
