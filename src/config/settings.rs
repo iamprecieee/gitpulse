@@ -18,6 +18,7 @@ pub struct Config {
     pub host: String,
     pub port: u32,
     pub cors_allowed_origins: String,
+    pub rate_limit_ms: u32,
 }
 
 impl Config {
