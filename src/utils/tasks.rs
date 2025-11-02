@@ -19,6 +19,10 @@ pub async fn send_daily_digest(state: Arc<AppState>) -> Result<()> {
         timeframe: "day".to_string(),
         count: 5,
         min_stars: 30,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
     };
 
     let repos = state.github_client.search_with_params(&params).await?;
@@ -44,6 +48,10 @@ pub async fn send_weekly_roundup(state: Arc<AppState>) -> Result<()> {
         timeframe: "week".to_string(),
         count: 10,
         min_stars: 50,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
     };
 
     let repos = state.github_client.search_with_params(&params).await?;

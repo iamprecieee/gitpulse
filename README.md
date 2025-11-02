@@ -199,6 +199,10 @@ GitPulse supports various natural language queries:
 - **Topic-based**: "What's hot in AI this week?"
 - **Time-filtered**: "Top repos from last month"
 - **Combined**: "Trending Rust web frameworks with over 100 stars"
+- **Specific dates**: "Rust projects created after January 23, 2013"
+- **Relative dates**: "AI repositories from last Tuesday"
+- **Natural language**: "Show me Python frameworks since October 1st 2025"
+- **ISO format**: "Trending repos after 2020-01-15"
 
 The LLM extracts structured parameters:
 - `language`: Programming language (e.g., "rust", "python")
@@ -206,6 +210,8 @@ The LLM extracts structured parameters:
 - `timeframe`: "day", "week", "month", "quarter", or "year"
 - `count`: Number of results (default: 5, max: 20)
 - `min_stars`: Minimum star threshold (default: 10)
+- `created_after`: Specific creation date (ISO format)
+- `pushed_after`: Last activity date (ISO format)
 
 ## Proactive Features
 
@@ -233,6 +239,7 @@ The service gracefully handles various error scenarios:
 - **Rate limit exceeded**: Falls back to cached data
 - **LLM parsing errors**: Uses default parameters and continues
 - **Invalid queries**: Returns structured error responses
+- **Date parsing errors**: Falls back to timeframe-based search
 
 ## Testing
 
@@ -255,7 +262,7 @@ gitpulse/
 │   ├── api/              # HTTP routes and A2A handlers
 │   ├── config/           # Configuration management
 │   ├── models/           # Data models (A2A, Query, Repository)
-│   ├── services/         # Core services (AI, GitHub, Cache, Scheduler, RateLimiter)
+│   ├── services/         # Core services (AI, GitHub, Cache, Scheduler, RateLimiter, DateParser)
 │   └── utils/            # Helper functions and tasks
 ├── tests/                # Integration tests
 ├── logs/                 # Application logs
@@ -268,12 +275,13 @@ gitpulse/
 
 Key dependencies:
 - **axum** - HTTP server framework
-- **reqwest** - HTTP client for GitHub API
-- **google-ai-rs** / **anthropic-sdk-rust** - LLM clients
-- **tokio** - Async runtime
 - **dashmap** - Thread-safe caching
-- **tokio-cron-scheduler** - Job scheduling
+- **google-ai-rs** / **anthropic-sdk-rust** - LLM clients
+- **regex** - Date pattern matching
+- **reqwest** - HTTP client for GitHub API
 - **serde** / **serde_json** - Serialization
+- **tokio** - Async runtime
+- **tokio-cron-scheduler** - Job scheduling
 
 ## Deployment
 
@@ -326,4 +334,3 @@ To integrate GitPulse with Telex workflows, create an AI Co-Worker and configure
 - Personal access token required for reasonable rate limits (5000 req/hour)
 - Very new repositories (hours old) may not appear in results
 - GitHub search is limited to 1000 results per query
-- **Date parsing**: Currently does not support specific dates like "23, January 2013" - only relative timeframes (day, week, month, quarter, year) are supported. Specific date parsing is planned for future updates

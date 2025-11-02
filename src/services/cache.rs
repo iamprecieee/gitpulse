@@ -32,12 +32,15 @@ impl Cache {
         let mut sorted_topics = params.topics.clone();
         sorted_topics.sort();
         format!(
-            "{}:{}:{}:{}:{}",
+            "{}:{}:{}:{}:{}:{}:{}:{}",
             params.language.as_deref().unwrap_or("None"),
             sorted_topics.join(","),
             params.timeframe,
             params.count,
-            params.min_stars
+            params.min_stars,
+            params.date_string.as_deref().unwrap_or("None"),
+            params.created_after.as_deref().unwrap_or("None"),
+            params.pushed_after.as_deref().unwrap_or("None"),
         )
     }
 

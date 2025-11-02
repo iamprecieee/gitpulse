@@ -11,6 +11,14 @@ pub struct QueryParams {
     pub count: usize,
     #[serde(default = "default_min_stars")]
     pub min_stars: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_string: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_after: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pushed_after: Option<String>,
+    #[serde(default)]
+    pub has_specific_date: bool,
 }
 
 fn default_timeframe() -> String {
@@ -33,6 +41,16 @@ impl Default for QueryParams {
             timeframe: default_timeframe(),
             count: default_count(),
             min_stars: default_min_stars(),
+            date_string: None,
+            created_after: None,
+            pushed_after: None,
+            has_specific_date: false,
         }
+    }
+}
+
+impl QueryParams {
+    pub fn uses_specific_dates(&self) -> bool {
+        self.created_after.is_some() || self.pushed_after.is_some()
     }
 }

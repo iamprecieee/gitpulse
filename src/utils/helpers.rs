@@ -36,7 +36,14 @@ pub fn calculate_date_filters(timeframe: &String) -> (String, String) {
 }
 
 pub fn build_base_query_parts(params: &QueryParams) -> Vec<String> {
-    let (created_date, pushed_date) = calculate_date_filters(&params.timeframe);
+    let (created_date, pushed_date) = if params.uses_specific_dates() {
+        (
+            params.created_after.clone().unwrap(),
+            params.pushed_after.clone().unwrap(),
+        )
+    } else {
+        calculate_date_filters(&params.timeframe)
+    };
 
     let mut query_parts = vec![
         format!("created:>{}", created_date),

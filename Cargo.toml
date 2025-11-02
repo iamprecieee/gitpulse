@@ -13,6 +13,7 @@ dotenvy = "0.15.7"
 envy = "0.4.2"
 futures = "0.3.31"
 google-ai-rs = "0.3.0"
+regex = "1.12.2"
 reqwest = { version = "0.12.24", features = ["json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"

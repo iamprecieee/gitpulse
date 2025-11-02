@@ -4,7 +4,7 @@ use anthropic_sdk::{Anthropic, ContentBlock, MessageCreateBuilder};
 use anyhow::{Context, Result};
 use google_ai_rs::Client;
 
-use crate::models::query::QueryParams;
+use crate::{models::query::QueryParams, services::date_parser::DateParser};
 
 #[derive(Clone)]
 enum LlmClient {
@@ -101,13 +101,33 @@ impl QueryParser {
             .trim_end_matches("```")
             .trim();
 
-        let params: QueryParams = match serde_json::from_str(cleaned) {
+        let mut params: QueryParams = match serde_json::from_str(cleaned) {
             Ok(params) => params,
             Err(e) => {
                 tracing::warn!("LLM response parsing failed: {e}, falling back to defaults");
                 QueryParams::default()
             }
         };
+
+        if params.has_specific_date {
+            if let Some(date_string) = &params.date_string {
+                tracing::info!("Date string: {}", date_string);
+
+                match DateParser::parse(&date_string) {
+                    Ok(date_range) => {
+                        params.created_after =
+                            Some(date_range.created_after.format("%Y-%m-%d").to_string());
+                        params.pushed_after =
+                            Some(date_range.pushed_after.format("%Y-%m-%d").to_string());
+                        params.timeframe =
+                            DateParser::calculate_timeframe_from_date(date_range.created_after);
+                    }
+                    Err(e) => {
+                        tracing::warn!("Failed to parse date string: {e}");
+                    }
+                }
+            }
+        }
 
         Ok(params)
     }

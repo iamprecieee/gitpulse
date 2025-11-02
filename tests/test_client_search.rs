@@ -66,6 +66,10 @@ async fn test_search_with_params() -> Result<()> {
         timeframe: "week".to_string(),
         count: 3,
         min_stars: 10,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
     };
 
     search_and_verify(params, 1, "Rust repos").await
@@ -79,6 +83,10 @@ async fn test_search_with_topics() -> Result<()> {
         timeframe: "month".to_string(),
         count: 5,
         min_stars: 50,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
     };
 
     search_and_verify(params, 1, "Python AI/ML repos").await
@@ -92,6 +100,10 @@ async fn test_search_with_invalid_topics() -> Result<()> {
         timeframe: "month".to_string(),
         count: 5,
         min_stars: 50,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
     };
 
     search_and_verify(params, 1, "Python repos (with invalid topic)").await

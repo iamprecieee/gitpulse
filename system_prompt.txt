@@ -20,19 +20,28 @@ Extract the following fields:
    - "today" or "yesterday" → "day"
    - "this week" or "last week" → "week"  
    - "this month" or "last month" → "month"
-   - For specific past dates (e.g., "September 15", "last Tuesday", "12th October 2020"):
-     * If within last 7 days → "week"
-     * If within last 30 days → "month"
-     * If within last 90 days → "quarter"
-     * If within last 365 days → "year"
-     * If older than 1 year → "year"
+   - For relative dates: use appropriate timeframe
+   - NOTE: If a specific date is mentioned (see field 6), this field becomes informational only
 
 4. count (integer): Number of results requested. Default: 5. Maximum: 20.
 
 5. min_stars (integer): Minimum star threshold. Default: 10.
 
+6. date_string (string | null): The RAW date expression from the user query if a specific date or date-like expression is mentioned.
+   - Extract the EXACT date phrase as the user wrote it
+   - Examples: "23 January 2013", "January 23, 2013", "after October 1st 2025", "since last Tuesday", "12th October 2020"
+   - Include words like "after", "since", "from" if present
+   - If the query only uses relative timeframes (day/week/month), set this to null
+   - If user says "created after X" or "since X", extract X as the date_string
+
+7. has_specific_date (boolean): true if the query contains a specific date expression that should be parsed specially, false otherwise.
+   - true for: "23 January 2013", "October 1st 2025", "last Tuesday", "September 15", "2020-01-15"
+   - false for: "this week", "yesterday", "last month", "today" (these are already handled by timeframe)
+
+NOTE: Do NOT include created_after or pushed_after fields in your response. These will be calculated automatically from the date_string by the backend date parser.
+
 Return ONLY a JSON object with these fields, in this exact order:
-{ "language": ..., "topics": ..., "timeframe": ..., "count": ..., "min_stars": ... }
+{ "language": ..., "topics": ..., "timeframe": ..., "count": ..., "min_stars": ..., "date_string": ..., "has_specific_date": ... }
 
 Do not include markdown formatting, explanations, or additional text.
 Return *only* valid JSON — no extra text, no code blocks.
@@ -43,6 +52,8 @@ If a field is missing, use:
 - "week" for timeframe
 - 5 for count
 - 10 for min_stars
+- null for date_string
+- false for has_specific_date
 
 Examples:
 
@@ -52,7 +63,9 @@ Query: "What's trending in Rust?"
   "topics": [],
   "timeframe": "week",
   "count": 5,
-  "min_stars": 10
+  "min_stars": 10,
+  "date_string": null,
+  "has_specific_date": false
 }
 
 Query: "Show me 10 AI and machine learning projects from this month"
@@ -61,7 +74,9 @@ Query: "Show me 10 AI and machine learning projects from this month"
   "topics": ["ai", "machine-learning"],
   "timeframe": "month",
   "count": 10,
-  "min_stars": 10
+  "min_stars": 10,
+  "date_string": null,
+  "has_specific_date": false
 }
 
 Query: "Popular Python web frameworks from yesterday"
@@ -70,23 +85,62 @@ Query: "Popular Python web frameworks from yesterday"
   "topics": ["web-framework"],
   "timeframe": "day",
   "count": 5,
-  "min_stars": 10
+  "min_stars": 10,
+  "date_string": null,
+  "has_specific_date": false
 }
 
-Query: "Top 15 Rust repos with over 100 stars this quarter"
+Query: "Top 15 Rust repos with over 100 stars created after January 23, 2013"
 {
   "language": "rust",
   "topics": [],
-  "timeframe": "quarter",
+  "timeframe": "year",
   "count": 15,
-  "min_stars": 100
+  "min_stars": 100,
+  "date_string": "after January 23, 2013",
+  "has_specific_date": true
 }
 
-Query: "Web3 and blockchain projects"
+Query: "Web3 and blockchain projects since October 1st 2025"
 {
   "language": null,
   "topics": ["web3", "blockchain"],
   "timeframe": "week",
   "count": 5,
-  "min_stars": 10
+  "min_stars": 10,
+  "date_string": "since October 1st 2025",
+  "has_specific_date": true
+}
+
+Query: "AI repositories created last Tuesday"
+{
+  "language": null,
+  "topics": ["ai"],
+  "timeframe": "week",
+  "count": 5,
+  "min_stars": 10,
+  "date_string": "last Tuesday",
+  "has_specific_date": true
+}
+
+Query: "Rust projects from September 15"
+{
+  "language": "rust",
+  "topics": [],
+  "timeframe": "month",
+  "count": 5,
+  "min_stars": 10,
+  "date_string": "September 15",
+  "has_specific_date": true
+}
+
+Query: "Show me Python repos created after 2020-01-15"
+{
+  "language": "python",
+  "topics": [],
+  "timeframe": "year",
+  "count": 5,
+  "min_stars": 10,
+  "date_string": "after 2020-01-15",
+  "has_specific_date": true
 }
