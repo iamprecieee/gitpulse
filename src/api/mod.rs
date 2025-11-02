@@ -1,6 +1,7 @@
 use axum::{
-    Router,
+    Extension, Router,
     http::{self, HeaderValue},
+    middleware,
     routing::{get, post},
 };
 use tower_http::cors::CorsLayer;
@@ -16,6 +17,7 @@ use crate::{
         A2ARequest, A2AResponse, Configuration, ErrorDetail, Message, MessagePart, RequestParams,
         TaskResult, TaskStatus,
     },
+    services::rate_limiter::rate_limit_middleware,
 };
 
 pub mod routes;
@@ -59,10 +61,15 @@ pub fn build_router(state: AppState) -> Router {
         ])
         .allow_credentials(true);
 
-    Router::new()
+    let api_routes = Router::new()
         .route("/health", get(health_check))
         .route("/trending", post(get_trending))
+        .layer(middleware::from_fn(rate_limit_middleware))
+        .layer(Extension(state.rate_limiter.clone()))
+        .layer(cors);
+
+    Router::new()
+        .merge(api_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .layer(cors)
         .with_state(state)
 }

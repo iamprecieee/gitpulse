@@ -1,8 +1,13 @@
+use std::net::SocketAddr;
+
 use anyhow::{Context, Error, Result};
 use gitpulse::{
     api::{build_router, state::AppState},
     config::{logging::setup_logging, settings::Config},
-    services::{ai::QueryParser, cache::Cache, github::GitHubClient, scheduler::AgentScheduler},
+    services::{
+        ai::QueryParser, cache::Cache, github::GitHubClient, rate_limiter::RateLimiter,
+        scheduler::AgentScheduler,
+    },
 };
 use tokio::net::TcpListener;
 
@@ -79,11 +84,14 @@ async fn main() -> Result<(), Error> {
 
     let addr = format!("{}:{}", &config.host, &config.port);
 
+    let rate_limiter = RateLimiter::new(config.rate_limit_ms, 60);
+
     let state = AppState {
         github_client,
         config,
         query_parser,
         cache,
+        rate_limiter,
     };
 
     let scheduler = AgentScheduler::new(state.clone()).await?;
@@ -99,7 +107,11 @@ async fn main() -> Result<(), Error> {
 
     tracing::info!("Server listening on {}", addr);
 
-    axum::serve(listener, app).await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

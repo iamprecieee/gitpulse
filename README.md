@@ -73,6 +73,9 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 
 # Cache Configuration
 CACHE_TTL=21600  # 6 hours in seconds
+
+# Rate limiter Configuration (requests per minute)
+RATE_LIMIT_MS=60 # 60 rpm
 ```
 
 ### 3. Build and Run
@@ -252,7 +255,7 @@ gitpulse/
 │   ├── api/              # HTTP routes and A2A handlers
 │   ├── config/           # Configuration management
 │   ├── models/           # Data models (A2A, Query, Repository)
-│   ├── services/         # Core services (AI, GitHub, Cache, Scheduler)
+│   ├── services/         # Core services (AI, GitHub, Cache, Scheduler, RateLimiter)
 │   └── utils/            # Helper functions and tasks
 ├── tests/                # Integration tests
 ├── logs/                 # Application logs
