@@ -80,12 +80,7 @@ pub fn format_trending_message(repos: &[TrendingRepo], params: QueryParams) -> S
     for (i, repo) in repos.iter().enumerate() {
         let stars = format_number(repo.stars);
 
-        message.push_str(&format!(
-            "### {}. - [{}]({})\n",
-            i + 1,
-            repo.name,
-            repo.url
-        ));
+        message.push_str(&format!("### {}. - [{}]({})\n", i + 1, repo.name, repo.url));
 
         message.push_str(&format!(">> {}\n", repo.description));
 

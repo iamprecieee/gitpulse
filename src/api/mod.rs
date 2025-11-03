@@ -14,8 +14,8 @@ use crate::{
         state::AppState,
     },
     models::a2a::{
-        A2ARequest, A2AResponse, Configuration, ErrorDetail, Message, MessagePart, RequestParams,
-        TaskResult, TaskStatus,
+        A2ARequest, A2AResponse, Artifact, Configuration, ErrorDetail, Message, MessagePart,
+        RequestParams, TaskResult, TaskStatus, TelexMetadata,
     },
     services::rate_limiter::rate_limit_middleware,
 };
@@ -27,15 +27,17 @@ pub mod state;
 #[openapi(
     paths(crate::api::routes::health_check, crate::api::routes::get_trending,),
     components(schemas(
+        A2AResponse,
         A2ARequest,
+        Artifact,
+        Configuration,
+        ErrorDetail,
         RequestParams,
         Message,
-        Configuration,
         MessagePart,
-        A2AResponse,
         TaskResult,
         TaskStatus,
-        ErrorDetail
+        TelexMetadata,
     )),
     info(title = "GitPulse API", version = "1.0.0")
 )]

@@ -1,6 +1,10 @@
-use axum::{Json, extract::State, response::IntoResponse};
-use reqwest::StatusCode;
-use serde_json::json;
+use axum::{
+    Json,
+    body::Bytes,
+    extract::State,
+    response::{IntoResponse, Response},
+};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
@@ -16,31 +20,96 @@ use crate::{
         (status = 200),
     )
 )]
-pub async fn health_check() -> impl IntoResponse {
-    (StatusCode::OK, Json(json!({"status": "OK"})))
+pub async fn health_check() -> Response {
+    Json(json!({"status": "OK"})).into_response()
 }
 
 #[utoipa::path(
     post,
     path = "/trending",
-    responses(
-        (status = 200, body = A2AResponse),
-        (status = 400, body = A2AResponse),
-        (status = 500, body = A2AResponse),
-    )
+    request_body = A2ARequest,
+    tag = "A2A",
 )]
-pub async fn get_trending(
-    State(state): State<AppState>,
-    Json(request): Json<A2ARequest>,
-) -> impl IntoResponse {
+pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Response {
+    if body.is_empty() {
+        tracing::warn!("Received empty request body");
+        return Json(A2AResponse::error(
+            Uuid::new_v4().to_string(),
+            -32600,
+            "Empty request received".to_string(),
+        ))
+        .into_response();
+    }
+
+    let parsed_json_value: Value = match serde_json::from_slice(&body) {
+        Ok(val) => val,
+        Err(e) => {
+            tracing::error!("JSON parse error: {}", e);
+
+            return Json(A2AResponse::error(
+                Uuid::new_v4().to_string(),
+                -32700,
+                "Parse error: Invalid JSON".to_string(),
+            ))
+            .into_response();
+        }
+    };
+
+    if parsed_json_value
+        .as_object()
+        .map_or(false, |obj| obj.is_empty())
+    {
+        tracing::info!("Received empty JSON object");
+
+        return Json(A2AResponse::error(
+            Uuid::new_v4().to_string(),
+            -32600,
+            "Empty JSON object received".to_string(),
+        ))
+        .into_response();
+    }
+
+    let request: A2ARequest = match serde_json::from_value(parsed_json_value.clone()) {
+        Ok(req) => req,
+        Err(e) => {
+            tracing::error!("A2ARequest deserialization error: {}", e);
+
+            let id = parsed_json_value
+                .get("id")
+                .and_then(|val| val.as_str())
+                .map(|s| s.to_string());
+
+            return Json(A2AResponse::error(
+                id.unwrap_or(Uuid::new_v4().to_string()),
+                -32602,
+                "Required fields may be missing or have wrong types".to_string(),
+            ))
+            .into_response();
+        }
+    };
+
+    get_trending_inner(state, request).await
+}
+
+async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
     tracing::info!("Received A2A request: ?{}", request.id);
 
     if request.jsonrpc != "2.0".to_string() {
-        return (
-            StatusCode::BAD_REQUEST,
-            A2AResponse::error(request.id, -32602, "invalid jsonrpc".to_string()),
-        )
-            .into_response();
+        return Json(A2AResponse::error(
+            request.id,
+            -32602,
+            "Invalid params: jsonrpc must be '2.0'".to_string(),
+        ))
+        .into_response();
+    }
+
+    if request.method != "message/send" {
+        return Json(A2AResponse::error(
+            request.id,
+            -32601,
+            "Method not found".to_string(),
+        ))
+        .into_response();
     }
 
     let user_text = match extract_user_query(&request) {
@@ -48,11 +117,12 @@ pub async fn get_trending(
         None => {
             tracing::error!("Failed to extract user query from request");
 
-            return (
-                StatusCode::BAD_REQUEST,
-                A2AResponse::error(request.id, -32600, "no message text found".to_string()),
-            )
-                .into_response();
+            return Json(A2AResponse::error(
+                request.id,
+                -32602,
+                "no message text found".to_string(),
+            ))
+            .into_response();
         }
     };
 
@@ -70,15 +140,12 @@ pub async fn get_trending(
             }
             Err(e) => {
                 tracing::error!("Failed to parse query with LLM: {}", e);
-                return (
-                    StatusCode::BAD_REQUEST,
-                    A2AResponse::error(
-                        request.id,
-                        -32700,
-                        "Unable to process your query. Please try rephrasing.".to_string(),
-                    ),
-                )
-                    .into_response();
+                return Json(A2AResponse::error(
+                    request.id,
+                    -32700,
+                    "Unable to process your query. Please try rephrasing.".to_string(),
+                ))
+                .into_response();
             }
         }
     };
@@ -94,15 +161,12 @@ pub async fn get_trending(
             Err(e) => {
                 tracing::error!("GitHub API error: {}", e);
 
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    A2AResponse::error(
-                        request.id,
-                        -32600,
-                        "Failed to fetch trending repositories. Try again later".to_string(),
-                    ),
-                )
-                    .into_response();
+                return Json(A2AResponse::error(
+                    request.id,
+                    -32600,
+                    "Failed to fetch trending repositories. Try again later".to_string(),
+                ))
+                .into_response();
             }
         }
     };
@@ -128,5 +192,5 @@ pub async fn get_trending(
 
     tracing::info!("Sending successful response with {} repos", repos.len());
 
-    response.into_response()
+    Json(response).into_response()
 }
