@@ -43,6 +43,9 @@ pub struct Message {
     pub message_id: String,
     #[serde(rename = "taskId")]
     pub task_id: Option<String>,
+    #[serde(rename = "metadata")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub telex_metadata: Option<TelexMetadata>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -73,6 +76,13 @@ impl MessagePart {
             MessagePart::Data { kind, .. } => kind,
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct TelexMetadata {
+    telex_user_id: Option<String>,
+    telex_channel_id: Option<String>,
+    org_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
@@ -131,6 +141,23 @@ impl A2AResponse {
             }],
             task_id: Some(task_id.clone()),
             kind: "message".to_string(),
+            telex_metadata: match &request_message.telex_metadata {
+                Some(metadata) => Some(TelexMetadata {
+                    telex_user_id: match metadata.telex_user_id.clone() {
+                        Some(val) => Some(val),
+                        None => None,
+                    },
+                    telex_channel_id: match metadata.telex_channel_id.clone() {
+                        Some(val) => Some(val),
+                        None => None,
+                    },
+                    org_id: match metadata.org_id.clone() {
+                        Some(val) => Some(val),
+                        None => None,
+                    },
+                }),
+                None => None,
+            },
         };
 
         Self {

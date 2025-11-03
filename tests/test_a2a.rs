@@ -35,6 +35,7 @@ fn test_success_response() {
         parts: vec![],
         message_id: "test-123".to_string(),
         task_id: Some("test-123".to_string()),
+        telex_metadata: None
     };
     let response_text = "Here are trending repos...".to_string();
 
@@ -60,6 +61,7 @@ fn test_success_response_without_task_id() {
         parts: vec![],
         message_id: "test-123".to_string(),
         task_id: Some("test-123".to_string()),
+        telex_metadata: None
     };
     let response_text = "Here are trending repos...".to_string();
 
@@ -106,6 +108,7 @@ fn test_response_round_trip() {
         parts: vec![],
         message_id: "test-123".to_string(),
         task_id: Some("test-123".to_string()),
+        telex_metadata: None
     };
     let response_text = "Round-trip test".to_string();
 

@@ -86,6 +86,7 @@ async fn call_external_webhook(
         }],
         message_id: Uuid::new_v4().to_string(),
         task_id: Some(Uuid::new_v4().to_string()),
+        telex_metadata: None,
     };
 
     let payload = serde_json::json!(A2AResponse::success(

@@ -29,7 +29,7 @@ async fn test_parse_query_with_real_gemini_api() -> Result<()> {
 
     assert!(params.language.unwrap().to_lowercase().contains("rust"));
     assert_eq!(params.topics.iter().count(), 3);
-    assert_eq!(params.timeframe, "week".to_string());
+    assert_eq!(params.timeframe, "quarter".to_string());
     assert_eq!(params.min_stars, 10u32);
 
     Ok(())
