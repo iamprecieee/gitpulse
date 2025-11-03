@@ -84,11 +84,7 @@ fn test_success_response_without_task_id() {
 
 #[test]
 fn test_serialize_error_response() {
-    let response = A2AResponse::error(
-        "req-789".to_string(),
-        -32601,
-        "Method not found".to_string(),
-    );
+    let response = A2AResponse::error(-32601, "Method not found".to_string());
 
     let json = serde_json::to_string_pretty(&response).unwrap();
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();

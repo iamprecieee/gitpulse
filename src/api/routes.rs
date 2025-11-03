@@ -18,7 +18,8 @@ use crate::{
     path = "/health",
     responses(
         (status = 200),
-    )
+    ),
+    tag = "health",
 )]
 pub async fn health_check() -> Response {
     Json(json!({"status": "OK"})).into_response()
@@ -34,7 +35,6 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
     if body.is_empty() {
         tracing::warn!("Received empty request body");
         return Json(A2AResponse::error(
-            Uuid::new_v4().to_string(),
             -32600,
             "Empty request received".to_string(),
         ))
@@ -47,7 +47,6 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
             tracing::error!("JSON parse error: {}", e);
 
             return Json(A2AResponse::error(
-                Uuid::new_v4().to_string(),
                 -32700,
                 "Parse error: Invalid JSON".to_string(),
             ))
@@ -62,7 +61,6 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
         tracing::info!("Received empty JSON object");
 
         return Json(A2AResponse::error(
-            Uuid::new_v4().to_string(),
             -32600,
             "Empty JSON object received".to_string(),
         ))
@@ -74,13 +72,7 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
         Err(e) => {
             tracing::error!("A2ARequest deserialization error: {}", e);
 
-            let id = parsed_json_value
-                .get("id")
-                .and_then(|val| val.as_str())
-                .map(|s| s.to_string());
-
             return Json(A2AResponse::error(
-                id.unwrap_or(Uuid::new_v4().to_string()),
                 -32602,
                 "Required fields may be missing or have wrong types".to_string(),
             ))
@@ -96,7 +88,6 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
 
     if request.jsonrpc != "2.0".to_string() {
         return Json(A2AResponse::error(
-            request.id,
             -32602,
             "Invalid params: jsonrpc must be '2.0'".to_string(),
         ))
@@ -104,12 +95,7 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
     }
 
     if request.method != "message/send" {
-        return Json(A2AResponse::error(
-            request.id,
-            -32601,
-            "Method not found".to_string(),
-        ))
-        .into_response();
+        return Json(A2AResponse::error(-32601, "Method not found".to_string())).into_response();
     }
 
     let user_text = match extract_user_query(&request) {
@@ -118,7 +104,6 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
             tracing::error!("Failed to extract user query from request");
 
             return Json(A2AResponse::error(
-                request.id,
                 -32602,
                 "no message text found".to_string(),
             ))
@@ -141,7 +126,6 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
             Err(e) => {
                 tracing::error!("Failed to parse query with LLM: {}", e);
                 return Json(A2AResponse::error(
-                    request.id,
                     -32700,
                     "Unable to process your query. Please try rephrasing.".to_string(),
                 ))
@@ -162,7 +146,6 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
                 tracing::error!("GitHub API error: {}", e);
 
                 return Json(A2AResponse::error(
-                    request.id,
                     -32600,
                     "Failed to fetch trending repositories. Try again later".to_string(),
                 ))

@@ -15,7 +15,7 @@ pub struct A2ARequest {
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct A2AResponse {
     pub jsonrpc: String,
-    pub id: String,
+    pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub result: Option<TaskResult>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -157,7 +157,7 @@ impl A2AResponse {
 
         Self {
             jsonrpc: "2.0".to_string(),
-            id: request_id,
+            id: Some(request_id),
             result: Some(TaskResult {
                 kind: "task".to_string(),
                 id: task_id,
@@ -174,10 +174,10 @@ impl A2AResponse {
         }
     }
 
-    pub fn error(request_id: String, code: i32, message: String) -> Self {
+    pub fn error(code: i32, message: String) -> Self {
         Self {
             jsonrpc: "2.0".to_string(),
-            id: request_id,
+            id: None,
             error: Some(ErrorDetail {
                 code,
                 message,
