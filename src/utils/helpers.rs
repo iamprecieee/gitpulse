@@ -61,26 +61,60 @@ pub fn build_base_query_parts(params: &QueryParams) -> Vec<String> {
     query_parts
 }
 
-pub fn format_trending_message(repos: &[TrendingRepo], timeframe: &str) -> String {
+pub fn format_trending_message(repos: &[TrendingRepo], params: QueryParams) -> String {
+    let timeframe = match params.has_specific_date {
+        true => params.date_string.unwrap_or(params.timeframe),
+        false => params.timeframe,
+    };
+
     if repos.is_empty() {
         return format!("No trending repositories found for {}.", timeframe);
     }
 
-    let mut message = format!("Trending on GitHub ({})\n\n", timeframe);
+    let mut message = String::new();
+
+    message.push_str("# Trending on GitHub\n\n");
+    message.push_str(&format!("**Period:** {}\n\n", timeframe));
+    message.push_str("---\n\n");
 
     for (i, repo) in repos.iter().enumerate() {
+        let stars = format_number(repo.stars);
+
         message.push_str(&format!(
-            "{}. {} - {} stars\n   {} - {}\n   {}\n\n",
+            "### {}. - [{}]({})\n\n",
             i + 1,
             repo.name,
-            repo.stars,
-            repo.language,
-            repo.description,
             repo.url
         ));
+
+        message.push_str(&format!(">> {}\n\n", repo.description));
+
+        message.push_str(&format!(
+            "**Stars:** {} | **Language:** {}\n\n",
+            stars, repo.language
+        ));
+
+        if i < repos.len() - 1 {
+            message.push_str("---\n\n");
+        }
     }
 
+    message.push_str(&format!(
+        "\n**_Found {} trending repositories_**\n",
+        repos.len()
+    ));
+
     message
+}
+
+fn format_number(num: u32) -> String {
+    if num >= 1_000_000 {
+        format!("{:.1}M", num as f64 / 1_000_000.0)
+    } else if num >= 1_000 {
+        format!("{:.1}k", num as f64 / 1_000.0)
+    } else {
+        num.to_string()
+    }
 }
 
 pub fn extract_user_query(request: &A2ARequest) -> Option<String> {

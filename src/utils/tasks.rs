@@ -26,7 +26,7 @@ pub async fn send_daily_digest(state: Arc<AppState>) -> Result<()> {
     };
 
     let repos = state.github_client.search_with_params(&params).await?;
-    let message = format_trending_message(&repos, "yesterday");
+    let message = format_trending_message(&repos, params);
 
     let artifacts = create_artifacts(message.clone());
 
@@ -55,7 +55,7 @@ pub async fn send_weekly_roundup(state: Arc<AppState>) -> Result<()> {
     };
 
     let repos = state.github_client.search_with_params(&params).await?;
-    let message = format_trending_message(&repos, "last week");
+    let message = format_trending_message(&repos, params);
 
     let artifacts = create_artifacts(message.clone());
 

@@ -25,7 +25,19 @@ fn test_format_message() {
         stars: 100,
     }];
 
-    let message = format_trending_message(&repos, "test");
+    let params = QueryParams {
+        language: None,
+        topics: vec![],
+        timeframe: "week".to_string(),
+        count: 1,
+        min_stars: 1,
+        date_string: None,
+        created_after: None,
+        pushed_after: None,
+        has_specific_date: false,
+    };
+
+    let message = format_trending_message(&repos, params);
     assert!(message.contains("test/repo"));
     assert!(message.contains("100 stars"));
 }
