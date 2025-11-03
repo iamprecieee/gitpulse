@@ -63,7 +63,7 @@ pub fn build_base_query_parts(params: &QueryParams) -> Vec<String> {
 
 pub fn format_trending_message(repos: &[TrendingRepo], params: QueryParams) -> String {
     let timeframe = match params.has_specific_date {
-        true => params.date_string.unwrap_or(params.timeframe),
+        true => params.created_after.unwrap_or(params.timeframe),
         false => params.timeframe,
     };
 
@@ -73,29 +73,29 @@ pub fn format_trending_message(repos: &[TrendingRepo], params: QueryParams) -> S
 
     let mut message = String::new();
 
-    message.push_str("# Trending on GitHub\n\n");
-    message.push_str(&format!("**Period:** {}\n\n", timeframe));
+    message.push_str("**TRENDING ON GITHUB**\n\n");
+    message.push_str(&format!("**PERIOD:** {}\n\n", timeframe));
     message.push_str("---\n\n");
 
     for (i, repo) in repos.iter().enumerate() {
         let stars = format_number(repo.stars);
 
         message.push_str(&format!(
-            "### {}. - [{}]({})\n\n",
+            "### {}. - [{}]({})\n",
             i + 1,
             repo.name,
             repo.url
         ));
 
-        message.push_str(&format!(">> {}\n\n", repo.description));
+        message.push_str(&format!(">> {}\n", repo.description));
 
         message.push_str(&format!(
-            "**Stars:** {} | **Language:** {}\n\n",
+            "**STARS:** {} | **LANGUAGE:** {}\n",
             stars, repo.language
         ));
 
         if i < repos.len() - 1 {
-            message.push_str("---\n\n");
+            message.push_str("---\n");
         }
     }
 
