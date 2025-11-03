@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc, Weekday};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct DateRange {
@@ -10,8 +10,6 @@ pub struct DateRange {
 pub struct DateParser;
 
 impl DateParser {
-    /// Parse a date string into a DateRange
-    ///
     /// Supports formats:
     /// - Specific dates: "23 January 2013", "January 23, 2013", "2013-01-23"
     /// - Relative dates: "yesterday", "last week", "last Tuesday"
@@ -19,55 +17,35 @@ impl DateParser {
     pub fn parse(date_str: &str) -> Result<DateRange> {
         let normalized = date_str.trim().to_lowercase();
 
-        if let Some(range) = Self::parse_relative_date(&normalized) {
-            return Ok(range);
-        }
-
-        if let Some(range) = Self::parse_timeframe(&normalized) {
-            return Ok(range);
-        }
-
-        if let Some(date) = Self::parse_specific_date(&normalized) {
-            return Ok(Self::create_range_from_date(date));
-        }
-
-        Ok(Self::parse_timeframe("week").unwrap())
+        Self::parse_relative_date(&normalized)
+            .or_else(|| Self::parse_timeframe(&normalized))
+            .or_else(|| Self::parse_specific_date(&normalized).map(Self::create_range_from_date))
+            .ok_or_else(|| anyhow::anyhow!("Unrecognized date format"))
     }
 
-    /// Parse relative date expressions like "yesterday", "last week"
     fn parse_relative_date(date_str: &str) -> Option<DateRange> {
         let now = Utc::now();
 
         match date_str {
-            s if s.contains("yesterday") => {
+            val if val.contains("yesterday") => {
                 let date = (now - Duration::days(1)).date_naive();
                 Some(Self::create_range_from_date(date))
             }
-            s if s.contains("today") => {
+            val if val.contains("today") => {
                 let date = now.date_naive();
                 Some(Self::create_range_from_date(date))
             }
-            s if s.contains("last week") || s.contains("past week") || s.contains("this week") => {
-                Self::parse_timeframe("week")
-            }
-            s if s.contains("last month")
-                || s.contains("past month")
-                || s.contains("this month") =>
-            {
-                Self::parse_timeframe("month")
-            }
-            s if s.contains("last year") || s.contains("past year") || s.contains("this year") => {
-                Self::parse_timeframe("year")
-            }
-            s if s.contains("last") && s.contains("day") => {
+            val if val.contains("week") => Self::parse_timeframe("week"),
+            val if val.contains("month") => Self::parse_timeframe("month"),
+            val if val.contains("year") => Self::parse_timeframe("year"),
+            val if val.contains("last") && val.contains("day") => {
                 // Extract number: "last 30 days"
-                let days = Self::extract_number(s).unwrap_or(7);
+                let days = Self::extract_number_from_string(val).unwrap_or(7);
                 let date = (now - Duration::days(days as i64)).date_naive();
                 Some(Self::create_range_from_date(date))
             }
-            s if s.contains("last") && Self::is_weekday(s) => {
-                // "last Tuesday", "last Friday"
-                let weekday = Self::extract_weekday(s)?;
+            val if val.contains("last") && Self::is_weekday(val) => {
+                let weekday = Self::extract_weekday_from_string(val)?;
                 let date = Self::get_last_weekday(now, weekday);
                 Some(Self::create_range_from_date(date))
             }
@@ -75,7 +53,6 @@ impl DateParser {
         }
     }
 
-    /// Parse timeframe keywords
     fn parse_timeframe(timeframe: &str) -> Option<DateRange> {
         let now = Utc::now();
 
@@ -97,7 +74,6 @@ impl DateParser {
         })
     }
 
-    /// Parse specific date formats
     fn parse_specific_date(date_str: &str) -> Option<NaiveDate> {
         let formats = vec![
             "%d %B %Y",  // "23 January 2013"
@@ -120,7 +96,6 @@ impl DateParser {
         Self::parse_flexible_date(date_str)
     }
 
-    /// Flexible date parsing for various formats
     fn parse_flexible_date(date_str: &str) -> Option<NaiveDate> {
         let cleaned = date_str
             .replace("after", "")
@@ -129,27 +104,17 @@ impl DateParser {
             .trim()
             .to_string();
 
-        if let Some((year, month, day)) = Self::extract_date_components(&cleaned) {
-            return NaiveDate::from_ymd_opt(year, month, day);
-        }
-
-        None
-    }
-
-    /// Extract date components from a string
-    fn extract_date_components(s: &str) -> Option<(i32, u32, u32)> {
         let year_regex = regex::Regex::new(r"\b(19|20)\d{2}\b").ok()?;
-        let year = year_regex.find(s)?.as_str().parse::<i32>().ok()?;
+        let year = year_regex.find(&cleaned)?.as_str().parse::<i32>().ok()?;
 
-        let month = Self::extract_month(s)?;
+        let month = Self::extract_month_from_string(&cleaned)?;
 
-        let day = Self::extract_day(s)?;
+        let day = Self::extract_day_from_string(&cleaned)?;
 
-        Some((year, month, day))
+        NaiveDate::from_ymd_opt(year, month, day)
     }
 
-    /// Extract month from string
-    fn extract_month(s: &str) -> Option<u32> {
+    fn extract_month_from_string(date_str: &str) -> Option<u32> {
         let months = vec![
             ("january", 1),
             ("jan", 1),
@@ -178,28 +143,22 @@ impl DateParser {
         ];
 
         for (name, num) in months {
-            if s.contains(name) {
+            if date_str.contains(name) {
                 return Some(num);
             }
         }
 
-        // Try numeric month
-        let parts: Vec<&str> = s.split(|c: char| !c.is_numeric()).collect();
-        for part in parts {
-            if let Ok(month) = part.parse::<u32>() {
-                if (1..=12).contains(&month) {
-                    return Some(month);
-                }
-            }
-        }
-
-        None
+        regex::Regex::new(r"\b(1[0-2]|0?[1-9])\b")
+            .ok()?
+            .find(date_str)?
+            .as_str()
+            .parse()
+            .ok()
     }
 
-    /// Extract day from string
-    fn extract_day(s: &str) -> Option<u32> {
+    fn extract_day_from_string(date_str: &str) -> Option<u32> {
         // Look for numbers that could be days (1-31)
-        let parts: Vec<&str> = s.split(|c: char| !c.is_numeric()).collect();
+        let parts: Vec<&str> = date_str.split(|c: char| !c.is_numeric()).collect();
         for part in parts {
             if let Ok(day) = part.parse::<u32>() {
                 if (1..=31).contains(&day) {
@@ -210,19 +169,16 @@ impl DateParser {
         None
     }
 
-    /// Extract a number from a string
-    fn extract_number(s: &str) -> Option<i64> {
-        let parts: Vec<&str> = s.split_whitespace().collect();
-        for part in parts {
-            if let Ok(num) = part.parse::<i64>() {
-                return Some(num);
-            }
-        }
-        None
+    fn extract_number_from_string(date_str: &str) -> Option<i64> {
+        regex::Regex::new(r"\d+")
+            .ok()?
+            .find(date_str)?
+            .as_str()
+            .parse()
+            .ok()
     }
 
-    /// Check if string contains a weekday name
-    fn is_weekday(s: &str) -> bool {
+    fn is_weekday(date_str: &str) -> bool {
         let weekdays = [
             "monday",
             "tuesday",
@@ -232,53 +188,37 @@ impl DateParser {
             "saturday",
             "sunday",
         ];
-        weekdays.iter().any(|&day| s.contains(day))
+        weekdays.iter().any(|&day| date_str.contains(day))
     }
 
-    /// Extract weekday from string
-    fn extract_weekday(s: &str) -> Option<chrono::Weekday> {
-        use chrono::Weekday;
+    fn extract_weekday_from_string(date_str: &str) -> Option<Weekday> {
+        use Weekday::*;
 
-        if s.contains("monday") {
-            Some(Weekday::Mon)
-        } else if s.contains("tuesday") {
-            Some(Weekday::Tue)
-        } else if s.contains("wednesday") {
-            Some(Weekday::Wed)
-        } else if s.contains("thursday") {
-            Some(Weekday::Thu)
-        } else if s.contains("friday") {
-            Some(Weekday::Fri)
-        } else if s.contains("saturday") {
-            Some(Weekday::Sat)
-        } else if s.contains("sunday") {
-            Some(Weekday::Sun)
-        } else {
-            None
-        }
+        [
+            ("monday", Mon),
+            ("tuesday", Tue),
+            ("wednesday", Wed),
+            ("thursday", Thu),
+            ("friday", Fri),
+            ("saturday", Sat),
+            ("sunday", Sun),
+        ]
+        .iter()
+        .find(|(name, _)| date_str.contains(*name))
+        .map(|(_, day)| *day)
     }
 
-    /// Get the most recent occurrence of a weekday
-    fn get_last_weekday(now: DateTime<Utc>, target_weekday: chrono::Weekday) -> NaiveDate {
-        let mut date = now.date_naive();
-
-        // Go back up to 7 days to find the target weekday
-        for _ in 0..7 {
-            date = date - Duration::days(1);
-            if date.weekday() == target_weekday {
-                return date;
-            }
-        }
-
-        (now - Duration::days(7)).date_naive()
+    fn get_last_weekday(now: DateTime<Utc>, target_weekday: Weekday) -> NaiveDate {
+        (1..=7)
+            .map(|i| (now - Duration::days(i)).date_naive())
+            .find(|date| date.weekday() == target_weekday)
+            .unwrap_or_else(|| (now - Duration::days(7)).date_naive())
     }
 
-    /// Create a DateRange from a specific date
     fn create_range_from_date(date: NaiveDate) -> DateRange {
         let now = Utc::now().date_naive();
         let days_ago = (now - date).num_days();
 
-        // Use the same logic as timeframe calculation
         let pushed_days = if days_ago <= 30 {
             days_ago
         } else if days_ago <= 90 {
@@ -295,21 +235,15 @@ impl DateParser {
         }
     }
 
-    /// Calculate timeframe string from a specific date (for backwards compatibility)
     pub fn calculate_timeframe_from_date(date: NaiveDate) -> String {
         let now = Utc::now().date_naive();
-        let days_ago = (now - date).num_days();
-
-        if days_ago <= 1 {
-            "day".to_string()
-        } else if days_ago <= 7 {
-            "week".to_string()
-        } else if days_ago <= 30 {
-            "month".to_string()
-        } else if days_ago <= 90 {
-            "quarter".to_string()
-        } else {
-            "year".to_string()
+        match (now - date).num_days() {
+            days if days <= 1 => "day",
+            days if days <= 7 => "week",
+            days if days <= 30 => "month",
+            days if days <= 90 => "quarter",
+            _ => "year",
         }
+        .to_string()
     }
 }
