@@ -67,11 +67,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health_check))
         .route("/trending", post(get_trending))
         .layer(middleware::from_fn(rate_limit_middleware))
-        .layer(Extension(state.rate_limiter.clone()))
-        .layer(cors);
-
-    Router::new()
+        .layer(Extension(state.rate_limiter.clone()));
+        
+        Router::new()
         .merge(api_routes)
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        .layer(cors)
         .with_state(state)
 }
