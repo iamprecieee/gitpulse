@@ -4,6 +4,7 @@ use axum::{
     extract::State,
     response::{IntoResponse, Response},
 };
+use reqwest::StatusCode;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
@@ -22,22 +23,28 @@ use crate::{
     tag = "health",
 )]
 pub async fn health_check() -> Response {
-    Json(json!({"status": "OK"})).into_response()
+    (StatusCode::OK, Json(json!({"status": "OK"}))).into_response()
 }
 
 #[utoipa::path(
     post,
     path = "/trending",
     request_body = A2ARequest,
+    responses(
+        (status = 200, body = A2AResponse),
+        (status = 400, body = A2AResponse),
+        (status = 500, body = A2AResponse),
+    ),
     tag = "A2A",
 )]
 pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Response {
     if body.is_empty() {
         tracing::warn!("Received empty request body");
-        return Json(A2AResponse::error(
+
+        return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
             -32600,
             "Empty request received".to_string(),
-        ))
+        )))
         .into_response();
     }
 
@@ -46,10 +53,10 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
         Err(e) => {
             tracing::error!("JSON parse error: {}", e);
 
-            return Json(A2AResponse::error(
+            return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
                 -32700,
                 "Parse error: Invalid JSON".to_string(),
-            ))
+            )))
             .into_response();
         }
     };
@@ -60,10 +67,10 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
     {
         tracing::info!("Received empty JSON object");
 
-        return Json(A2AResponse::error(
+        return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
             -32600,
             "Empty JSON object received".to_string(),
-        ))
+        )))
         .into_response();
     }
 
@@ -72,10 +79,10 @@ pub async fn get_trending(State(state): State<AppState>, body: Bytes) -> Respons
         Err(e) => {
             tracing::error!("A2ARequest deserialization error: {}", e);
 
-            return Json(A2AResponse::error(
+            return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
                 -32602,
                 "Required fields may be missing or have wrong types".to_string(),
-            ))
+            )))
             .into_response();
         }
     };
@@ -87,10 +94,10 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
     tracing::info!("Received A2A request: ?{}", request.id);
 
     if request.jsonrpc != "2.0".to_string() {
-        return Json(A2AResponse::error(
+        return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
             -32602,
             "Invalid params: jsonrpc must be '2.0'".to_string(),
-        ))
+        )))
         .into_response();
     }
 
@@ -103,10 +110,10 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
         None => {
             tracing::error!("Failed to extract user query from request");
 
-            return Json(A2AResponse::error(
+            return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
                 -32602,
                 "no message text found".to_string(),
-            ))
+            )))
             .into_response();
         }
     };
@@ -125,10 +132,10 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
             }
             Err(e) => {
                 tracing::error!("Failed to parse query with LLM: {}", e);
-                return Json(A2AResponse::error(
+                return (StatusCode::BAD_REQUEST, Json(A2AResponse::error(
                     -32700,
                     "Unable to process your query. Please try rephrasing.".to_string(),
-                ))
+                )))
                 .into_response();
             }
         }
@@ -145,10 +152,10 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
             Err(e) => {
                 tracing::error!("GitHub API error: {}", e);
 
-                return Json(A2AResponse::error(
+                return (StatusCode::INTERNAL_SERVER_ERROR, Json(A2AResponse::error(
                     -32600,
                     "Failed to fetch trending repositories. Try again later".to_string(),
-                ))
+                )))
                 .into_response();
             }
         }
@@ -175,5 +182,5 @@ async fn get_trending_inner(state: AppState, request: A2ARequest) -> Response {
 
     tracing::info!("Sending successful response with {} repos", repos.len());
 
-    Json(response).into_response()
+    (StatusCode::OK, Json(response)).into_response()
 }
